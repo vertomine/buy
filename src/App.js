@@ -54,15 +54,34 @@ function App() {
 
   const fetchBnbPrice = async () => {
     try {
-      const response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT');
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+      // 第一API尝试：CoinGecko
+      let response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd');
+      if (response.ok) {
+        const data = await response.json();
+        setBnbPrice(data.binancecoin.usd);
+        return;
       }
-      const data = await response.json();
-      setBnbPrice(parseFloat(data.price));
+      throw new Error('Failed to fetch from CoinGecko');
     } catch (error) {
-      console.error("Failed to fetch BNB price:", error);
-      setLoadingError('Failed to load BNB price. Please try again later.');
+      console.error("Failed to fetch BNB price from CoinGecko:", error.message);
+      
+      try {
+        // 第二API尝试：CryptoCompare
+        let response = await fetch('https://min-api.cryptocompare.com/data/price?fsym=BNB&tsyms=USD');
+        if (response.ok) {
+          const data = await response.json();
+          setBnbPrice(data.USD);
+          return;
+        }
+        throw new Error('Failed to fetch from CryptoCompare');
+      } catch (error) {
+        console.error("Failed to fetch BNB price from CryptoCompare:", error.message);
+        
+        // 使用固定价格
+        const fallbackPrice = 580; // 设定的固定价格
+        setBnbPrice(fallbackPrice);
+        setLoadingError('Failed to load live BNB price. Using fallback value.');
+      }
     }
   };
 

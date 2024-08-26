@@ -170,3 +170,26 @@ body {
 .list-group-item a:hover {
   color: #00aaff; /* 悬停时的浅蓝色 */
 }
+
+@media (max-width: 768px) {
+  /* 手机端的样式调整 */
+  .container {
+    width: 100%;
+    padding: 10px;
+  }
+
+  .navbar {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .wallet-section {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .invite-link-section,
+  .invite-records-section {
+    margin: 0 auto;
+  }
+}
