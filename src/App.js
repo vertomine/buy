@@ -54,7 +54,7 @@ function App() {
 
   const fetchBnbPrice = async () => {
     try {
-      // 第一API尝试：CoinGecko
+      // 尝试第一API源: CoinGecko
       let response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd');
       if (response.ok) {
         const data = await response.json();
@@ -64,9 +64,9 @@ function App() {
       throw new Error('Failed to fetch from CoinGecko');
     } catch (error) {
       console.error("Failed to fetch BNB price from CoinGecko:", error.message);
-      
+
       try {
-        // 第二API尝试：CryptoCompare
+        // 尝试第二API源: CryptoCompare
         let response = await fetch('https://min-api.cryptocompare.com/data/price?fsym=BNB&tsyms=USD');
         if (response.ok) {
           const data = await response.json();

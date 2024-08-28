@@ -45,17 +45,39 @@ function Mining({ account, contract, web3 }) {
     setVertBalance(web3.utils.fromWei(balance, 'ether'));
   };
 
-  useEffect(() => {
-    const fetchBnbPrice = async () => {
-      try {
-        const response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT');
+  const fetchBnbPrice = async () => {
+    try {
+      // 尝试第一API源: CoinGecko
+      let response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd');
+      if (response.ok) {
         const data = await response.json();
-        setBnbPrice(parseFloat(data.price));
-      } catch (error) {
-        console.error("Failed to fetch BNB price:", error);
+        setBnbPrice(data.binancecoin.usd);
+        return;
       }
-    };
+      throw new Error('Failed to fetch from CoinGecko');
+    } catch (error) {
+      console.error("Failed to fetch BNB price from CoinGecko:", error.message);
 
+      try {
+        // 尝试第二API源: CryptoCompare
+        let response = await fetch('https://min-api.cryptocompare.com/data/price?fsym=BNB&tsyms=USD');
+        if (response.ok) {
+          const data = await response.json();
+          setBnbPrice(data.USD);
+          return;
+        }
+        throw new Error('Failed to fetch from CryptoCompare');
+      } catch (error) {
+        console.error("Failed to fetch BNB price from CryptoCompare:", error.message);
+        
+        // 使用固定价格
+        const fallbackPrice = 580; // 设定的固定价格
+        setBnbPrice(fallbackPrice);
+      }
+    }
+  };
+
+  useEffect(() => {
     fetchBnbPrice();
   }, []);
 
