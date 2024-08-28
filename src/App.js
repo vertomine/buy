@@ -7,6 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome, faFileAlt, faLink, faWallet, faHammer, faCopy } from '@fortawesome/free-solid-svg-icons';
 import { faTwitter, faTelegram } from '@fortawesome/free-brands-svg-icons';
 import Mining from './Mining';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
   const [account, setAccount] = useState('');
