@@ -53,12 +53,19 @@ function App() {
   const communityRewardAddress = '0xa52831306A8bEf9c46448c3554359ff9bd075e7C';
 
   const fetchBnbPrice = async () => {
+    const cachedPrice = localStorage.getItem('bnbPrice');
+    if (cachedPrice) {
+      setBnbPrice(parseFloat(cachedPrice));
+    }
+
     try {
       // 尝试第一API源: CoinGecko
       let response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd');
       if (response.ok) {
         const data = await response.json();
-        setBnbPrice(data.binancecoin.usd);
+        const newPrice = data.binancecoin.usd;
+        setBnbPrice(newPrice);
+        localStorage.setItem('bnbPrice', newPrice); // 缓存价格
         return;
       }
       throw new Error('Failed to fetch from CoinGecko');
@@ -70,29 +77,58 @@ function App() {
         let response = await fetch('https://min-api.cryptocompare.com/data/price?fsym=BNB&tsyms=USD');
         if (response.ok) {
           const data = await response.json();
-          setBnbPrice(data.USD);
+          const newPrice = data.USD;
+          setBnbPrice(newPrice);
+          localStorage.setItem('bnbPrice', newPrice); // 缓存价格
           return;
         }
         throw new Error('Failed to fetch from CryptoCompare');
       } catch (error) {
         console.error("Failed to fetch BNB price from CryptoCompare:", error.message);
-        
-        // 使用固定价格
-        const fallbackPrice = 580; // 设定的固定价格
-        setBnbPrice(fallbackPrice);
-        setLoadingError('Failed to load live BNB price. Using fallback value.');
+
+        try {
+          // 尝试第三API源: Binance API
+          let response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT');
+          if (response.ok) {
+            const data = await response.json();
+            const newPrice = parseFloat(data.price);
+            setBnbPrice(newPrice);
+            localStorage.setItem('bnbPrice', newPrice); // 缓存价格
+            return;
+          }
+          throw new Error('Failed to fetch from Binance');
+        } catch (error) {
+          console.error("Failed to fetch BNB price from Binance:", error.message);
+
+          try {
+            // 尝试第四API源: OKX
+            let response = await fetch('https://www.okx.com/api/v5/market/ticker?instId=BNB-USDT');
+            if (response.ok) {
+              const data = await response.json();
+              const newPrice = parseFloat(data.data[0].last);
+              setBnbPrice(newPrice);
+              localStorage.setItem('bnbPrice', newPrice); // 缓存价格
+              return;
+            }
+            throw new Error('Failed to fetch from OKX');
+          } catch (error) {
+            console.error("Failed to fetch BNB price from OKX:", error.message);
+
+            // 如果所有请求都失败，则使用固定价格
+            if (!cachedPrice) {
+              setBnbPrice(580); // 没有缓存时使用固定价格
+              console.error("All BNB price fetch attempts failed, using fallback price of 580 USDT.");
+            }
+          }
+        }
       }
     }
   };
 
   useEffect(() => {
     fetchBnbPrice();
-    const savedAccount = localStorage.getItem('account');
-    if (savedAccount) {
-      setAccount(savedAccount);
-      setIsWalletConnected(true);
-      reconnectWallet(savedAccount);
-    }
+    const interval = setInterval(fetchBnbPrice, 3600000); // 每小时刷新一次价格
+    return () => clearInterval(interval);
   }, []);
 
   const connectWallet = async () => {

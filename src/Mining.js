@@ -15,43 +15,41 @@ function Mining({ account, contract, web3 }) {
   const vertContractAddress = '0x36dBF50Bf00205E04A73D48ed7E37c99612f2D45';
 
   const vertContractABI = [
-    {
-      "constant": true,
-      "inputs": [{"name": "_owner", "type": "address"}],
-      "name": "balanceOf",
-      "outputs": [{"name": "balance", "type": "uint256"}],
-      "payable": false,
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [{"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}],
-      "name": "transfer",
-      "outputs": [{"name": "success", "type": "bool"}],
-      "payable": false,
-      "type": "function"
-    }
+    {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"spender","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Approval","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"addLiquidity","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"distributeTokens","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"isOwnershipRenounced","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"account","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"mint","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"newLpAddress","type":"address"}],"name":"setLpAddress","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"referrer","type":"address"}],"name":"setReferrer","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"sender"},{"internalType":"address","name":"recipient"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}
   ];
 
-  useEffect(() => {
-    if (account && web3) {
-      loadVertBalance();
-    }
-  }, [account, web3]);
-
-  const loadVertBalance = async () => {
-    const vertContract = new web3.eth.Contract(vertContractABI, vertContractAddress);
-    const balance = await vertContract.methods.balanceOf(account).call();
-    setVertBalance(web3.utils.fromWei(balance, 'ether'));
-  };
-
   const fetchBnbPrice = async () => {
+    const cachedPrice = localStorage.getItem('bnbPrice');
+    if (cachedPrice) {
+      setBnbPrice(parseFloat(cachedPrice));
+    }
+
     try {
       // 尝试第一API源: CoinGecko
       let response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd');
       if (response.ok) {
         const data = await response.json();
-        setBnbPrice(data.binancecoin.usd);
+        const newPrice = data.binancecoin.usd;
+        setBnbPrice(newPrice);
+        localStorage.setItem('bnbPrice', newPrice); // 缓存价格
         return;
       }
       throw new Error('Failed to fetch from CoinGecko');
@@ -63,23 +61,71 @@ function Mining({ account, contract, web3 }) {
         let response = await fetch('https://min-api.cryptocompare.com/data/price?fsym=BNB&tsyms=USD');
         if (response.ok) {
           const data = await response.json();
-          setBnbPrice(data.USD);
+          const newPrice = data.USD;
+          setBnbPrice(newPrice);
+          localStorage.setItem('bnbPrice', newPrice); // 缓存价格
           return;
         }
         throw new Error('Failed to fetch from CryptoCompare');
       } catch (error) {
         console.error("Failed to fetch BNB price from CryptoCompare:", error.message);
-        
-        // 使用固定价格
-        const fallbackPrice = 580; // 设定的固定价格
-        setBnbPrice(fallbackPrice);
+
+        try {
+          // 尝试第三API源: Binance API
+          let response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT');
+          if (response.ok) {
+            const data = await response.json();
+            const newPrice = parseFloat(data.price);
+            setBnbPrice(newPrice);
+            localStorage.setItem('bnbPrice', newPrice); // 缓存价格
+            return;
+          }
+          throw new Error('Failed to fetch from Binance');
+        } catch (error) {
+          console.error("Failed to fetch BNB price from Binance:", error.message);
+
+          try {
+            // 尝试第四API源: OKX
+            let response = await fetch('https://www.okx.com/api/v5/market/ticker?instId=BNB-USDT');
+            if (response.ok) {
+              const data = await response.json();
+              const newPrice = parseFloat(data.data[0].last);
+              setBnbPrice(newPrice);
+              localStorage.setItem('bnbPrice', newPrice); // 缓存价格
+              return;
+            }
+            throw new Error('Failed to fetch from OKX');
+          } catch (error) {
+            console.error("Failed to fetch BNB price from OKX:", error.message);
+
+            // 如果所有请求都失败，则使用固定价格
+            if (!cachedPrice) {
+              setBnbPrice(580); // 没有缓存时使用固定价格
+              console.error("All BNB price fetch attempts failed, using fallback price of 580 USDT.");
+            }
+          }
+        }
       }
     }
   };
 
   useEffect(() => {
     fetchBnbPrice();
+    const interval = setInterval(fetchBnbPrice, 3600000); // 每小时刷新一次价格
+    return () => clearInterval(interval);
   }, []);
+
+  const loadVertBalance = async () => {
+    const vertContract = new web3.eth.Contract(vertContractABI, vertContractAddress);
+    const balance = await vertContract.methods.balanceOf(account).call();
+    setVertBalance(web3.utils.fromWei(balance, 'ether'));
+  };
+
+  useEffect(() => {
+    if (account && web3) {
+      loadVertBalance();
+    }
+  }, [account, web3]);
 
   const startStaking = async () => {
     if (stakeAmount <= 0 || stakeAmount > vertBalance) {
